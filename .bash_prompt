@@ -1,0 +1,79 @@
+#!/bin/bash
+
+NC='\033[0m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+
+prompt_git() {
+  local git_status="$(git status 2> /dev/null)"
+  if [[ $git_status ]]
+  then
+    local upstream=$(git rev-parse --symbolic-full-name --abbrev-ref @{upstream} 2> /dev/null)
+    local diff=$(git log --pretty=oneline --topo-order --left-right ${branch}...${upstream} 2> /dev/null)
+    local ahead=$(grep -c "^<" <<< "$diff")
+    local behind=$(grep -c "^>" <<< "$diff")
+    local stash=$(git stash list 2> /dev/null | wc -l)
+    local stats=$(git diff --shortstat 2> /dev/null)
+    local match_stats="([0-9]+) file[^,]*"
+    local match_branch="On branch ([^${IFS}]*)"
+    local match_commit="HEAD detached at ([^${IFS}]*)"
+    [[ $git_status =~ $match_branch ]] && local branch=${BASH_REMATCH[1]}
+    [[ $git_status =~ $match_commit ]] && local branch=${BASH_REMATCH[1]}
+    [[ $stats =~ $match_stats ]] && local changes=${BASH_REMATCH[1]}
+    local output=""
+    [[ $branch ]] && output+=" on ${BLUE}$branch${NC}"
+    [[ $changes ]] || [[ $ahead -ne 0 ]] || [[ $behind -ne 0 ]] || [[ $stash -ne 0 ]] && output+=" ${CYAN}"
+    [[ $changes ]] && output+=≠
+    [[ $ahead -ne 0 ]] && output+=↑
+    [[ $behind -ne 0 ]] && output+=↓
+    [[ $stash -ne 0 ]] && output+=⚑
+    [[ $changes ]] || [[ $ahead -ne 0 ]] || [[ $behind -ne 0 ]] || [[ $stash -ne 0 ]] && output+="]${NC}"
+    echo -e $output
+  fi
+}
+
+# Display last command status : ✓ or ✗
+# Display last command execution time
+# Display user & path
+# Display hostname if connected through SSH or root
+# Display current git info (branch, +-modified files, num of ahead/behind commit with remote) [TODO]
+HISTSIZE=
+HISTFILESIZE=
+HISTCONTROL=ignoredups:erasedups
+shopt -s histappend
+PATH=/usr/local/opt/coreutils/libexec/gnubin:$PATH
+timer() {
+  [[ -z $1 ]] && echo $(($(date +%s%N) / 1000000)) && return
+  diff=$(($(date +%s%N) / 1000000 - $1))
+  [[ $diff -lt 1000 ]] && echo ${diff}ms && return
+  [[ $diff -lt 60000 ]] && echo $((diff / 1000))s && return
+  [[ $diff -lt 3600000 ]] && echo $((diff / 60000))m$((diff / 1000 % 60))s && return
+  echo $((diff / 3600000))h$((diff / 60000 % 60))m && return
+}
+pre_timer() {
+  [[ -z $flag_time ]] && return
+  unset flag_time
+  start_time=$(timer)
+  history -a
+  history -c
+  history -r
+}
+post_timer() {
+  (($?)) && status="${RED}✗${NC}" || status="${GREEN}✓${NC}"
+  duration=" in ${YELLOW}$(timer $start_time)${NC} at ${YELLOW}$(date +%T)${NC}"
+  [[ $start_time ]] && echo -e "$status$duration\n"
+  flag_time=1
+  _z --add "$(command pwd '$_Z_RESOLVE_SYMLINKS' 2>/dev/null)" 2>/dev/null
+}
+_Z_NO_PROMPT_COMMAND=1
+trap 'pre_timer' DEBUG
+PROMPT_COMMAND='post_timer'
+
+PS1="$yellow\u$reset"
+[[ $USER == "root" || $SSH_TTY ]] && PS1+=" at ${RED}\h${NC}"
+PS1+=" in ${GREEN}\w${NC}"
+PS1+=" \$(prompt_git)\n$ "
