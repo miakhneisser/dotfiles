@@ -1,4 +1,5 @@
-export ZSH=/Users/$USER/.oh-my-zsh
+export ZSH=~/.oh-my-zsh
+export ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR=/usr/local/share/zsh-syntax-highlighting
 
 # https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
 # ZSH_THEME="avit"
@@ -13,11 +14,13 @@ plugins=(
 	history
 	extract
 	yarn
+	zsh-autosuggestions
+	zsh-syntax-highlighting
 
 )
 
 source $ZSH/oh-my-zsh.sh
-source /Users/$USER/zsh-syntax-highlighting/zsh-syntax-highlighting.sh
+source $ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR/zsh-syntax-highlighting.zsh
 
 # z extension for browsing
 . ~/z.sh
