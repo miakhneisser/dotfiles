@@ -1,5 +1,7 @@
 log() { echo "\033[32m$@\033[0m"; }
 
+# instal brew
+
 which brew &>/dev/null || {
   log "> Install Package Manager"
   /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
